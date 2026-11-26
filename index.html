@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K.O. METRICS ARCADE - IA Pose Tracking</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050811;
+            color: #f1f5f9;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .text-glow-cyan { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
+        .text-glow-amber { text-shadow: 0 0 12px rgba(245, 158, 11, 0.9); }
+        .text-glow-red { text-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+        input[type=range] { accent-color: #06b6d4; }
+        #mainCanvas { transform: scaleX(-1); }
+
+        @keyframes punchPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            60% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: punchPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        @keyframes countdownPulse {
+            0% { transform: scale(1.4); opacity: 0; }
+            50% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0; }
+        }
+        .animate-countdown { animation: countdownPulse 0.7s ease-out forwards; }
+
+        @keyframes borderFlash {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.9); }
+            50% { border-color: rgba(245, 158, 11, 1); }
+        }
+        .hit-flash { animation: borderFlash 0.25s ease-in-out 3; }
+
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-8px, 5px); }
+            40% { transform: translate(8px, -5px); }
+            60% { transform: translate(-6px, -4px); }
+            80% { transform: translate(6px, 4px); }
+        }
+        .shake-heavy { animation: screenShake 0.35s ease-in-out; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-4 bg-slate-950 text-slate-100">
+
+    <!-- HEADER NAVBAR -->
+    <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 border border-slate-800">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+                <svg class="w-6 h-6 text-slate-950 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="font-orbitron font-extrabold text-lg md:text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300">
+                    K.O. METRICS ARCADE
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">Rastreo de Golpes con IA (MediaPipe Pose)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-3">
+            <div id="playerChip" class="hidden sm:flex items-center bg-slate-900 border border-cyan-500/40 rounded-xl px-3 py-1.5 text-xs">
+                <span class="text-slate-400 mr-1.5">Peleador:</span>
+                <span id="headerPlayerName" class="font-orbitron font-bold text-cyan-400">---</span>
+            </div>
+
+            <button id="openLeaderboardBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-400 font-orbitron text-xs font-bold transition-all">
+                <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+                <span>Récords</span>
+            </button>
+
+            <button id="audioToggleBtn" class="p-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 transition-all" title="Silenciar / Activar sonido">
+                <svg id="audioIconOn" class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
+                <svg id="audioIconOff" class="w-5 h-5 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APPLICATION WORKSPACE -->
+    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto">
+        
+        <!-- CAMERA VIEWPORT & HUD OVERLAYS -->
+        <div class="lg:col-span-8 flex flex-col items-center justify-center relative">
+            <div id="videoCard" class="relative w-full aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+                
+                <video id="webcam" class="hidden" playsinline muted autoplay></video>
+                <canvas id="mainCanvas" class="w-full h-full object-cover block"></canvas>
+
+                <!-- Barra de tiempo de ventana de golpeo -->
+                <div id="measureTimerContainer" class="absolute top-0 left-0 w-full h-2 bg-slate-950/80 z-20 hidden">
+                    <div id="measureTimerBar" class="h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 w-full"></div>
+                </div>
+
+                <!-- Status Banner Overlay -->
+                <div id="statusBadge" class="absolute top-4 left-3 bg-slate-900/90 backdrop-blur-md border border-cyan-500/40 px-3 py-1.5 rounded-xl text-xs font-medium text-cyan-300 flex items-center gap-2 pointer-events-none z-10">
+                    <span id="statusPing" class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span id="statusText" class="font-orbitron font-bold">Cargando Modelo IA...</span>
+                </div>
+
+                <!-- IA Mode Tag -->
+                <div class="absolute top-4 right-3 bg-slate-900/80 backdrop-blur-md border border-slate-700 px-2.5 py-1 rounded-lg text-[10px] font-mono text-slate-300 pointer-events-none z-10">
+                    <span>MODO: </span><span class="text-cyan-400 font-bold">MEDIAPIPE POSE IA</span>
+                </div>
+
+                <!-- Live Performance Stats -->
+                <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-mono text-slate-400 flex gap-3 border border-slate-800 pointer-events-none z-10">
+                    <div>FPS: <span id="fpsVal" class="text-cyan-400 font-bold">--</span></div>
+                    <div>IA: <span id="latencyVal" class="text-emerald-400 font-bold">0 ms</span></div>
+                </div>
+
+                <!-- COUNTDOWN OVERLAY NUMBERS -->
+                <div id="countdownOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-xs pointer-events-none opacity-0 z-20">
+                    <div id="countdownText" class="font-orbitron font-black text-8xl md:text-9xl text-amber-400 text-glow-amber">3</div>
+                    <div id="countdownSub" class="font-orbitron font-bold text-lg md:text-xl text-cyan-300 uppercase tracking-widest mt-2">¡PREPÁRATE!</div>
+                </div>
+
+                <!-- PUNCH HIT SCORE BANNER OVERLAY -->
+                <div id="punchBanner" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 pointer-events-none opacity-0 z-20 text-center">
+                    <div id="punchBadge" class="font-orbitron font-black text-7xl md:text-9xl tracking-tight text-red-500 text-glow-red animate-pop">000</div>
+                    <div id="punchSubtitle" class="font-orbitron text-sm md:text-xl font-bold text-amber-400 text-glow-amber uppercase tracking-wider mt-1 px-3 py-1 rounded-xl bg-slate-950/75 inline-block">
+                        ¡GOLPE REGISTRADO!
+                    </div>
+                </div>
+
+                <!-- INITIAL CAMERA OVERLAY PROMPT -->
+                <div id="startOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30 transition-opacity">
+                    <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-center mb-4 text-cyan-400">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <h2 class="font-orbitron font-bold text-xl md:text-2xl text-slate-100 mb-2">Máquina de Boxeo con IA</h2>
+                    <p class="text-xs md:text-sm text-slate-400 max-w-md mb-6">
+                        Detecta tus muñecas en tiempo real e ignora el movimiento del fondo. Colócate de forma que se vean tus hombros y brazos.
+                    </p>
+                    <button id="startCamBtn" disabled class="px-8 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-40 text-slate-950 font-orbitron font-extrabold text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition-all">
+                        CARGANDO IA...
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DASHBOARD & GAMEPLAY CONTROLS -->
+        <div class="lg:col-span-4 flex flex-col gap-3">
+            
+            <div class="glass-panel p-4 rounded-2xl flex flex-col border border-slate-800">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Progreso del Turno</span>
+                    <span id="attemptCountBadge" class="font-orbitron font-bold text-xs text-amber-400">Intento 0 / 3</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <div id="dot1" class="h-2 rounded-full bg-slate-800 transition-all"></div>
+                    <div id="dot2" class="h-2 rounded-full bg-slate-800 transition-all"></div>
+                    <div id="dot3" class="h-2 rounded-full bg-slate-800 transition-all"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono mb-2">
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-500">INTENTO 1</div>
+                        <div id="scoreAtt1" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-500">INTENTO 2</div>
+                        <div id="scoreAtt2" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <div class="text-[10px] text-slate-500">INTENTO 3</div>
+                        <div id="scoreAtt3" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    </div>
+                </div>
+
+                <button id="startTurnBtn" class="w-full py-3.5 mt-2 bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-orbitron font-extrabold text-xs md:text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                    <span>INICIAR TURNO (ESPACIO)</span>
+                </button>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl flex flex-col items-center text-center relative border border-slate-800">
+                <div class="text-[11px] uppercase tracking-widest font-semibold text-slate-400 mb-1">Último Golpe</div>
+                <div id="currentScoreDisplay" class="font-orbitron text-5xl font-black text-cyan-400 text-glow-cyan my-0.5">000</div>
+                <div id="scoreRatingText" class="text-xs font-orbitron font-semibold text-slate-400 min-h-[2rem] flex items-center justify-center px-2 mb-2">
+                    ESPERANDO INICIO DE TURNO
+                </div>
+
+                <div class="w-full bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    <div class="flex justify-between text-[10px] font-semibold text-slate-400 mb-1">
+                        <span>VELOCIDAD DE PUÑO</span>
+                        <span id="motionValText" class="text-cyan-400 font-bold">0%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div id="motionBar" class="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-red-500 rounded-full transition-all duration-75 w-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 border border-slate-800">
+                <h3 class="font-orbitron text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-1.5 flex justify-between items-center">
+                    <span>Ajustes de Detección</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                </h3>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between text-xs font-medium">
+                        <span class="text-slate-300">Multiplicador de Velocidad</span>
+                        <span id="sensitivityVal" class="text-cyan-400 font-bold">1.5x</span>
+                    </div>
+                    <input type="range" id="sensitivitySlider" min="0.5" max="3.5" step="0.1" value="1.5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <div class="flex justify-between text-xs font-medium">
+                        <span class="text-slate-300">Umbral Mínimo de Golpe</span>
+                        <span id="thresholdVal" class="text-amber-400 font-bold">15%</span>
+                    </div>
+                    <input type="range" id="thresholdSlider" min="5" max="40" step="1" value="15" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <button id="changePlayerBtn" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-orbitron text-xs font-bold rounded-xl transition-all border border-slate-700 mt-1">
+                    Cambiar Nombre de Jugador
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODALES -->
+    <div id="nameModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-cyan-500/40 shadow-2xl text-center flex flex-col items-center">
+            <h2 class="font-orbitron font-extrabold text-xl md:text-2xl text-slate-100 mb-1">REGISTRO DE PELEADOR</h2>
+            <p class="text-xs text-slate-400 mb-5">Ingresa tu nombre para guardar tu récord en el tablero local.</p>
+            <form id="nameForm" class="w-full flex flex-col gap-4">
+                <input type="text" id="playerNameInput" maxlength="15" required placeholder="Ej: Tyson, Rocky, Canelo" 
+                    class="w-full bg-slate-900 border-2 border-slate-700 focus:border-cyan-400 text-slate-100 font-orbitron font-bold text-center text-lg p-3 rounded-xl outline-none">
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-orbitron font-extrabold text-sm rounded-xl">
+                    ENTRAR AL RING
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="summaryModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-amber-500/40 shadow-2xl text-center flex flex-col items-center">
+            <h2 class="font-orbitron font-extrabold text-xl text-slate-100 mb-1">FIN DEL TURNO</h2>
+            <p id="summaryPlayerName" class="text-sm font-orbitron text-cyan-400 font-bold mb-4">Peleador</p>
+            <div class="w-full bg-slate-900/90 border border-amber-500/50 rounded-2xl p-4 mb-4">
+                <div class="text-xs uppercase text-amber-400 font-semibold tracking-widest">Mejor Golpe del Turno</div>
+                <div id="summaryBestScore" class="font-orbitron text-6xl font-black text-amber-400 text-glow-amber my-1">000</div>
+                <div id="summaryRecordBadge" class="text-xs font-orbitron text-emerald-400 font-bold hidden">¡NUEVO RÉCORD GUARDADO!</div>
+            </div>
+            <div class="w-full grid grid-cols-3 gap-2 text-center text-xs font-mono mb-6">
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 1</span><span id="sumScore1" class="font-orbitron font-bold text-sm">---</span></div>
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 2</span><span id="sumScore2" class="font-orbitron font-bold text-sm">---</span></div>
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 3</span><span id="sumScore3" class="font-orbitron font-bold text-sm">---</span></div>
+            </div>
+            <div class="w-full flex gap-2">
+                <button id="playAgainBtn" class="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-orbitron font-extrabold text-xs rounded-xl">OTRO TURNO</button>
+                <button id="closeSummaryBtn" class="py-3 px-4 bg-slate-800 text-slate-300 font-orbitron font-bold text-xs rounded-xl border border-slate-700">CERRAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="leaderboardModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <h2 class="font-orbitron font-extrabold text-lg text-slate-100">TABLA DE RÉCORDS</h2>
+                <button id="closeLeaderboardBtn" class="text-slate-400 hover:text-slate-100 p-1">✕</button>
+            </div>
+            <div id="leaderboardList" class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1 mb-4"></div>
+            <button id="clearLeaderboardBtn" class="w-full py-2 bg-red-950/40 text-red-400 font-orbitron text-xs font-bold rounded-xl border border-red-800/40">Borrar Historial</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+        const FUNNY_PHRASES = {
+            miss: [
+                "¿Le pegaste al aire o qué? 💨",
+                "Ni una mosca sintió eso 🪰",
+                "¿Estabas saludando a la cámara? 👋",
+                "Error 404: Golpe no encontrado ❌"
+            ],
+            light: [
+                "¿Eso fue un golpe o una caricia? 🪶",
+                "Mi abuelita pega más fuerte 👵",
+                "Cosquillas tácticas detectadas 🤭",
+                "¿Estabas espantando un mosquito? 🦟",
+                "Golpe patrocinado por almohadas de plumas 🛏️"
+            ],
+            medium: [
+                "¡Ya va picando ese gancho! 🥊",
+                "No estuvo mal, pero falta proteína 🥩",
+                "Buen susto le diste al aire 🔥",
+                "Golpe respetable, nivel sparring 💪",
+                "Ya despertaste al vecino de abajo 👊"
+            ],
+            heavy: [
+                "¡LO MANDASTE A DORMIR SIN CENA! 💥",
+                "¡Llamen a una ambulancia... pero no para ti! 🚑",
+                "¡Ese golpe reinició el Wi-Fi! 📡",
+                "¡Puro poder estilo Canelo en prime! 🏆",
+                "¡Casi rompes la pantalla, tranquilo Tyson! 🦍"
+            ]
+        };
+
+        function getRandomPhrase(category) {
+            const list = FUNNY_PHRASES[category];
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        class SoundEngine {
+            constructor() { this.ctx = null; this.muted = false; }
+
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            }
+
+            playBeep(isGo = false) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(isGo ? 880 : 440, now);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + (isGo ? 0.3 : 0.15));
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + (isGo ? 0.35 : 0.18));
+            }
+
+            playNoiseBurst(duration, filterFreq, volume) {
+                const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(filterFreq, this.ctx.currentTime);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
+
+            playPunchByTier(score) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+
+                if (score === 0) {
+                    // Sonido cómico descendente (fallo)
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.linearRampToValueAtTime(140, now + 0.35);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                    return;
+                }
+
+                if (score <= 350) {
+                    // Golpe leve: sonido agudo/suave tipo tap
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(240, now);
+                    osc.frequency.exponentialRampToValueAtTime(95, now + 0.12);
+                    gain.gain.setValueAtTime(0.45, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (score <= 700) {
+                    // Golpe medio: impacto + silbido de aire
+                    this.playNoiseBurst(0.14, 900, 0.45);
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.exponentialRampToValueAtTime(42, now + 0.22);
+                    gain.gain.setValueAtTime(0.8, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else {
+                    // Golpe alto / K.O.: explosión grave + golpe seco fuerte
+                    this.playNoiseBurst(0.25, 1400, 0.85);
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(190, now);
+                    osc.frequency.exponentialRampToValueAtTime(24, now + 0.38);
+                    gain.gain.setValueAtTime(1.0, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.42);
+                }
+            }
+
+            playFanfare() {
+                if (this.muted) return;
+                this.init();
+                [261.63, 329.63, 392.00, 523.25, 659.25].forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + (idx * 0.08);
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.28);
+                });
+            }
+        }
+
+        const sound = new SoundEngine();
+        let poseLandmarker = null;
+
+        const state = {
+            playerName: localStorage.getItem('ko_last_player') || '',
+            isStreaming: false,
+            roundActive: false,
+            currentAttempt: 0,
+            attemptScores: [0, 0, 0],
+            measuringWindow: false,
+            measureStartTime: 0,
+            measureDuration: 2500,
+            peakScoreInMeasurement: 0,
+            sensitivity: 1.5,
+            threshold: 15,
+            frameCount: 0,
+            lastFpsUpdate: performance.now(),
+            lastVideoTime: -1,
+            prevWrists: { left: null, right: null },
+            trails: { left: [], right: [] }
+        };
+
+        const webcam = document.getElementById('webcam');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const startOverlay = document.getElementById('startOverlay');
+        const startCamBtn = document.getElementById('startCamBtn');
+        const nameModal = document.getElementById('nameModal');
+        const nameForm = document.getElementById('nameForm');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const headerPlayerName = document.getElementById('headerPlayerName');
+        const playerChip = document.getElementById('playerChip');
+        const startTurnBtn = document.getElementById('startTurnBtn');
+        const statusPing = document.getElementById('statusPing');
+        const statusText = document.getElementById('statusText');
+        const fpsVal = document.getElementById('fpsVal');
+        const latencyVal = document.getElementById('latencyVal');
+
+        if (state.playerName) playerNameInput.value = state.playerName;
+
+        async function initMediaPipe() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numPoses: 1
+                });
+                startCamBtn.disabled = false;
+                startCamBtn.textContent = "INICIAR CÁMARA";
+                statusText.textContent = "IA LISTA";
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "Error al cargar IA";
+                alert("Error cargando MediaPipe. Asegúrate de abrir este archivo con Live Server o GitHub Pages.");
+            }
+        }
+
+        initMediaPipe();
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60 } }
+                });
+                webcam.srcObject = stream;
+                await new Promise((resolve) => {
+                    webcam.onloadedmetadata = () => { webcam.play(); resolve(); };
+                });
+
+                canvas.width = webcam.videoWidth || 640;
+                canvas.height = webcam.videoHeight || 480;
+                state.isStreaming = true;
+                startOverlay.classList.add('opacity-0', 'pointer-events-none');
+                statusText.textContent = "SISTEMA LISTO";
+                statusPing.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+
+                requestAnimationFrame(processFrameLoop);
+            } catch (err) {
+                alert("No se pudo acceder a la cámara. Otorga los permisos en tu navegador.");
+            }
+        }
+
+        function processFrameLoop(timestamp) {
+            if (!state.isStreaming) return;
+
+            ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+
+            let speedPercent = 0;
+
+            if (poseLandmarker && webcam.currentTime !== state.lastVideoTime) {
+                const t0 = performance.now();
+                state.lastVideoTime = webcam.currentTime;
+                const results = poseLandmarker.detectForVideo(webcam, t0);
+                latencyVal.textContent = `${(performance.now() - t0).toFixed(1)} ms`;
+
+                if (results.landmarks && results.landmarks.length > 0) {
+                    const landmarks = results.landmarks[0];
+                    const leftWrist = landmarks[15];
+                    const rightWrist = landmarks[16];
+
+                    const leftSpeed = computeWristSpeed('left', leftWrist);
+                    const rightSpeed = computeWristSpeed('right', rightWrist);
+
+                    speedPercent = Math.max(leftSpeed, rightSpeed);
+
+                    drawWristHUD(leftWrist, leftSpeed, '#06b6d4', 'left');
+                    drawWristHUD(rightWrist, rightSpeed, '#f59e0b', 'right');
+                } else {
+                    state.prevWrists.left = null;
+                    state.prevWrists.right = null;
+                }
+            }
+
+            updateMotionMeter(speedPercent);
+
+            if (state.measuringWindow) {
+                if (speedPercent > state.peakScoreInMeasurement) {
+                    state.peakScoreInMeasurement = speedPercent;
+                }
+                const elapsed = performance.now() - state.measureStartTime;
+                const remainingPct = Math.max(0, 100 - (elapsed / state.measureDuration) * 100);
+                document.getElementById('measureTimerBar').style.width = `${remainingPct}%`;
+            }
+
+            state.frameCount++;
+            if (timestamp - state.lastFpsUpdate >= 500) {
+                fpsVal.textContent = Math.round((state.frameCount * 1000) / (timestamp - state.lastFpsUpdate));
+                state.frameCount = 0;
+                state.lastFpsUpdate = timestamp;
+            }
+
+            requestAnimationFrame(processFrameLoop);
+        }
+
+        function computeWristSpeed(side, current) {
+            if (!current || current.visibility < 0.5) {
+                state.prevWrists[side] = null;
+                state.trails[side] = [];
+                return 0;
+            }
+
+            const prev = state.prevWrists[side];
+            state.prevWrists[side] = { x: current.x, y: current.y, z: current.z };
+
+            if (!prev) return 0;
+
+            const dx = current.x - prev.x;
+            const dy = current.y - prev.y;
+            const dz = (current.z - prev.z) * 0.6;
+            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+            return dist * 450 * state.sensitivity;
+        }
+
+        function drawWristHUD(wrist, speed, color, side) {
+            if (!wrist || wrist.visibility < 0.5) return;
+
+            const x = wrist.x * canvas.width;
+            const y = wrist.y * canvas.height;
+
+            state.trails[side].push({ x, y });
+            if (state.trails[side].length > 8) state.trails[side].shift();
+
+            ctx.save();
+            if (state.trails[side].length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(state.trails[side][0].x, state.trails[side][0].y);
+                for (let i = 1; i < state.trails[side].length; i++) {
+                    ctx.lineTo(state.trails[side][i].x, state.trails[side][i].y);
+                }
+                ctx.strokeStyle = speed >= state.threshold ? '#ef4444' : color;
+                ctx.lineWidth = speed >= state.threshold ? 8 : 4;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            const radius = speed >= state.threshold ? 24 : 14;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = speed >= state.threshold ? 'rgba(239, 68, 68, 0.45)' : 'rgba(6, 182, 212, 0.25)';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = speed >= state.threshold ? '#ef4444' : color;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function updateMotionMeter(delta) {
+            const val = Math.min(Math.max(delta, 0), 100);
+            document.getElementById('motionBar').style.width = `${val}%`;
+            document.getElementById('motionValText').textContent = `${Math.round(val)}%`;
+        }
+
+        async function startTurnSequence() {
+            if (!state.isStreaming || state.roundActive) return;
+            state.roundActive = true;
+            state.currentAttempt = 0;
+            state.attemptScores = [0, 0, 0];
+
+            resetAttemptUI();
+            startTurnBtn.disabled = true;
+            startTurnBtn.classList.add('opacity-50');
+
+            for (let i = 1; i <= 3; i++) {
+                state.currentAttempt = i;
+                updateAttemptTrackerUI(i);
+                await runCountdownSequence();
+                const attemptScore = await runMeasurementWindow();
+                state.attemptScores[i - 1] = attemptScore;
+                showAttemptResult(i, attemptScore);
+                if (i < 3) await sleep(2000);
+            }
+
+            await sleep(1000);
+            finishRoundSummary();
+        }
+
+        function runCountdownSequence() {
+            return new Promise(async (resolve) => {
+                const overlay = document.getElementById('countdownOverlay');
+                const text = document.getElementById('countdownText');
+                const sub = document.getElementById('countdownSub');
+                overlay.classList.remove('opacity-0');
+                
+                const steps = ["3", "2", "1", "¡GOLPEA!"];
+                for (let i = 0; i < steps.length; i++) {
+                    text.textContent = steps[i];
+                    text.className = i === 3 ? 
+                        "font-orbitron font-black text-6xl md:text-8xl text-red-500 text-glow-red animate-countdown" :
+                        "font-orbitron font-black text-8xl md:text-9xl text-amber-400 text-glow-amber animate-countdown";
+                    sub.textContent = i === 3 ? "¡MEDICIÓN ACTIVA!" : "¡PREPÁRATE!";
+                    sound.playBeep(i === 3);
+                    await sleep(750);
+                }
+                overlay.classList.add('opacity-0');
+                resolve();
+            });
+        }
+
+        function runMeasurementWindow() {
+            return new Promise(async (resolve) => {
+                state.measuringWindow = true;
+                state.measureStartTime = performance.now();
+                state.peakScoreInMeasurement = 0;
+
+                document.getElementById('measureTimerContainer').classList.remove('hidden');
+                document.getElementById('videoCard').classList.add('border-amber-500');
+                statusText.textContent = "MEDICIÓN EN CURSO...";
+                statusPing.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping";
+
+                await sleep(state.measureDuration);
+
+                state.measuringWindow = false;
+                document.getElementById('measureTimerContainer').classList.add('hidden');
+                document.getElementById('videoCard').classList.remove('border-amber-500');
+                statusText.textContent = "SISTEMA LISTO";
+                statusPing.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+
+                const peak = state.peakScoreInMeasurement;
+                let score = 0;
+                if (peak >= state.threshold) {
+                    const ratio = Math.min((peak - state.threshold) / (85 - state.threshold), 1.0);
+                    score = Math.floor(180 + (ratio * 819));
+                } else if (peak > 2) {
+                    score = Math.floor((peak / state.threshold) * 150);
+                }
+                resolve(score);
+            });
+        }
+
+        function showAttemptResult(attemptNum, score) {
+            sound.playPunchByTier(score);
+            document.getElementById(`scoreAtt${attemptNum}`).textContent = score;
+            document.getElementById('currentScoreDisplay').textContent = score.toString().padStart(3, '0');
+
+            let rating = "";
+            let colorClass = "text-slate-400";
+
+            if (score === 0) {
+                rating = getRandomPhrase('miss');
+                colorClass = "text-slate-400";
+            } else if (score <= 350) {
+                rating = getRandomPhrase('light');
+                colorClass = "text-cyan-400";
+            } else if (score <= 700) {
+                rating = getRandomPhrase('medium');
+                colorClass = "text-amber-400";
+            } else {
+                rating = getRandomPhrase('heavy');
+                colorClass = "text-red-500";
+            }
+
+            const ratingEl = document.getElementById('scoreRatingText');
+            ratingEl.textContent = rating;
+            ratingEl.className = `text-xs font-orbitron font-bold min-h-[2rem] flex items-center justify-center px-2 ${colorClass}`;
+
+            const banner = document.getElementById('punchBanner');
+            document.getElementById('punchBadge').textContent = score;
+            document.getElementById('punchSubtitle').textContent = rating;
+            banner.style.opacity = '1';
+
+            const vc = document.getElementById('videoCard');
+            if (score > 700) {
+                vc.classList.add('hit-flash', 'shake-heavy');
+                setTimeout(() => vc.classList.remove('hit-flash', 'shake-heavy'), 600);
+            } else if (score > 0) {
+                vc.classList.add('hit-flash');
+                setTimeout(() => vc.classList.remove('hit-flash'), 600);
+            }
+
+            setTimeout(() => { banner.style.opacity = '0'; }, 1500);
+        }
+
+        function updateAttemptTrackerUI(attempt) {
+            document.getElementById('attemptCountBadge').textContent = `Intento ${attempt} / 3`;
+            document.getElementById(`dot${attempt}`).className = "h-2 rounded-full bg-cyan-400 shadow-md shadow-cyan-400/50";
+        }
+
+        function resetAttemptUI() {
+            document.getElementById('attemptCountBadge').textContent = "Intento 0 / 3";
+            [1, 2, 3].forEach(n => {
+                document.getElementById(`scoreAtt${n}`).textContent = "---";
+                document.getElementById(`dot${n}`).className = "h-2 rounded-full bg-slate-800";
+            });
+            document.getElementById('currentScoreDisplay').textContent = "000";
+            document.getElementById('scoreRatingText').textContent = "PREPARADO";
+        }
+
+        function finishRoundSummary() {
+            state.roundActive = false;
+            startTurnBtn.disabled = false;
+            startTurnBtn.classList.remove('opacity-50');
+
+            const bestScore = Math.max(...state.attemptScores);
+            document.getElementById('summaryPlayerName').textContent = `Peleador: ${state.playerName}`;
+            document.getElementById('summaryBestScore').textContent = bestScore.toString().padStart(3, '0');
+            [1, 2, 3].forEach(n => document.getElementById(`sumScore${n}`).textContent = state.attemptScores[n - 1]);
+
+            const isNewRecord = bestScore > 0 && saveScoreToLeaderboard(state.playerName, bestScore);
+            const recBadge = document.getElementById('summaryRecordBadge');
+            if (isNewRecord) { recBadge.classList.remove('hidden'); sound.playFanfare(); }
+            else { recBadge.classList.add('hidden'); }
+
+            document.getElementById('summaryModal').classList.remove('hidden');
+        }
+
+        function getLeaderboard() { return JSON.parse(localStorage.getItem('ko_arcade_leaderboard')) || []; }
+        function saveScoreToLeaderboard(name, score) {
+            let board = getLeaderboard();
+            board.push({ name, score, date: new Date().toLocaleDateString() });
+            board.sort((a, b) => b.score - a.score);
+            board = board.slice(0, 10);
+            localStorage.setItem('ko_arcade_leaderboard', JSON.stringify(board));
+            return board[0].name === name && board[0].score === score;
+        }
+
+        function renderLeaderboard() {
+            const board = getLeaderboard();
+            const list = document.getElementById('leaderboardList');
+            list.innerHTML = board.length === 0
+                ? `<div class="text-center text-xs text-slate-500 py-6">Sin récords guardados aún.</div>`
+                : board.map((e, i) => `
+                    <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
+                        <div class="flex items-center gap-2">
+                            <span class="${i === 0 ? 'text-amber-400' : 'text-slate-300'} font-bold w-5 text-center font-orbitron">#${i + 1}</span>
+                            <span class="font-orbitron font-bold text-slate-100">${e.name.replace(/[<>&"']/g, '')}</span>
+                        </div>
+                        <span class="font-orbitron font-extrabold text-cyan-400">${e.score} pts</span>
+                    </div>`).join('');
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        nameForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const val = playerNameInput.value.trim();
+            if (val) {
+                state.playerName = val;
+                localStorage.setItem('ko_last_player', val);
+                headerPlayerName.textContent = val;
+                playerChip.classList.remove('hidden');
+                nameModal.classList.add('hidden');
+                if (!state.isStreaming && poseLandmarker) startCamera();
+            }
+        });
+
+        startTurnBtn.addEventListener('click', () => { sound.init(); startTurnSequence(); });
+        startCamBtn.addEventListener('click', () => {
+            sound.init();
+            if (!state.playerName) nameModal.classList.remove('hidden');
+            else startCamera();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.code === 'Space' && nameModal.classList.contains('hidden') && document.getElementById('leaderboardModal').classList.contains('hidden')) {
+                e.preventDefault();
+                document.getElementById('summaryModal').classList.add('hidden');
+                sound.init();
+                startTurnSequence();
+            }
+        });
+
+        document.getElementById('changePlayerBtn').addEventListener('click', () => { playerNameInput.value = state.playerName; nameModal.classList.remove('hidden'); });
+        document.getElementById('playAgainBtn').addEventListener('click', () => { document.getElementById('summaryModal').classList.add('hidden'); startTurnSequence(); });
+        document.getElementById('closeSummaryBtn').addEventListener('click', () => document.getElementById('summaryModal').classList.add('hidden'));
+        document.getElementById('openLeaderboardBtn').addEventListener('click', () => { renderLeaderboard(); document.getElementById('leaderboardModal').classList.remove('hidden'); });
+        document.getElementById('closeLeaderboardBtn').addEventListener('click', () => document.getElementById('leaderboardModal').classList.add('hidden'));
+        document.getElementById('clearLeaderboardBtn').addEventListener('click', () => {
+            if (confirm("¿Borrar historial de récords?")) { localStorage.removeItem('ko_arcade_leaderboard'); renderLeaderboard(); }
+        });
+
+        document.getElementById('sensitivitySlider').addEventListener('input', e => {
+            state.sensitivity = parseFloat(e.target.value);
+            document.getElementById('sensitivityVal').textContent = `${state.sensitivity.toFixed(1)}x`;
+        });
+        document.getElementById('thresholdSlider').addEventListener('input', e => {
+            state.threshold = parseInt(e.target.value);
+            document.getElementById('thresholdVal').textContent = `${state.threshold}%`;
+        });
+        document.getElementById('audioToggleBtn').addEventListener('click', () => {
+            sound.muted = !sound.muted;
+            document.getElementById('audioIconOn').classList.toggle('hidden', sound.muted);
+            document.getElementById('audioIconOff').classList.toggle('hidden', !sound.muted);
+            if (!sound.muted) sound.init();
+        });
+    </script>
+</body>
+</html>
