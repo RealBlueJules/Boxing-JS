@@ -14,9 +14,17 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #050811;
+            /* El fondo se aplicará mediante JavaScript dinámicamente */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: #f1f5f9;
             overflow-x: hidden;
             user-select: none;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .bg-overlay {
+            background-color: rgba(5, 8, 17, 0.85); /* Tinte para oscurecer el fondo y destacar la interfaz */
         }
         .font-orbitron { font-family: 'Orbitron', sans-serif; }
         .text-glow-cyan { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
@@ -60,13 +68,16 @@
         .shake-heavy { animation: screenShake 0.35s ease-in-out; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between p-2 md:p-4 bg-slate-950 text-slate-100">
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-4">
+
+    <!-- TINTE OSCURO PARA EL BACKGROUND -->
+    <div class="fixed inset-0 bg-overlay -z-10"></div>
 
     <!-- SOUNDTRACK DE FONDO -->
     <audio id="bgMusic" src="tebastyson.mp3" loop preload="auto"></audio>
 
     <!-- HEADER NAVBAR -->
-    <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 border border-slate-800">
+    <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 border border-slate-800 relative z-10">
         <div class="flex items-center space-x-3">
             <div class="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
                 <svg class="w-6 h-6 text-slate-950 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,6 +93,14 @@
         </div>
 
         <div class="flex items-center gap-2 md:gap-3">
+            <!-- Botón para alternar fondo -->
+            <button id="toggleBgBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 rounded-xl text-cyan-400 font-orbitron text-xs font-bold transition-all" title="Cambiar escenario">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span id="bgNameText">Escenario: Hombres</span>
+            </button>
+
             <div id="playerChip" class="hidden sm:flex items-center bg-slate-900 border border-cyan-500/40 rounded-xl px-3 py-1.5 text-xs">
                 <span class="text-slate-400 mr-1.5">Peleador:</span>
                 <span id="headerPlayerName" class="font-orbitron font-bold text-cyan-400">---</span>
@@ -106,7 +125,7 @@
     </header>
 
     <!-- MAIN APPLICATION WORKSPACE -->
-    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto">
+    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto relative z-10">
         
         <!-- CAMERA VIEWPORT & HUD OVERLAYS -->
         <div class="lg:col-span-8 flex flex-col items-center justify-center relative">
@@ -254,7 +273,7 @@
 
     <!-- MODALES -->
     <div id="nameModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-cyan-500/40 shadow-2xl text-center flex flex-col items-center">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-cyan-500/40 shadow-2xl text-center flex flex-col items-center relative z-20">
             <h2 class="font-orbitron font-extrabold text-xl md:text-2xl text-slate-100 mb-1">REGISTRO DE PELEADOR</h2>
             <p class="text-xs text-slate-400 mb-5">Ingresa tu nombre para guardar tu récord en el tablero local.</p>
             <form id="nameForm" class="w-full flex flex-col gap-4">
@@ -268,7 +287,7 @@
     </div>
 
     <div id="summaryModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-amber-500/40 shadow-2xl text-center flex flex-col items-center">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-amber-500/40 shadow-2xl text-center flex flex-col items-center relative z-20">
             <h2 class="font-orbitron font-extrabold text-xl text-slate-100 mb-1">FIN DEL TURNO</h2>
             <p id="summaryPlayerName" class="text-sm font-orbitron text-cyan-400 font-bold mb-4">Peleador</p>
             <div class="w-full bg-slate-900/90 border border-amber-500/50 rounded-2xl p-4 mb-4">
@@ -289,7 +308,7 @@
     </div>
 
     <div id="leaderboardModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl flex flex-col">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl flex flex-col relative z-20">
             <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                 <h2 class="font-orbitron font-extrabold text-lg text-slate-100">TABLA DE RÉCORDS</h2>
                 <button id="closeLeaderboardBtn" class="text-slate-400 hover:text-slate-100 p-1">✕</button>
@@ -494,7 +513,8 @@
             lastVideoTime: -1,
             prevTimestamp: performance.now(),
             prevWrists: { left: null, right: null },
-            trails: { left: [], right: [] }
+            trails: { left: [], right: [] },
+            bgType: localStorage.getItem('ko_bg_type') || 'hombres' // 'hombres' o 'mujeres'
         };
 
         const webcam = document.getElementById('webcam');
@@ -512,6 +532,28 @@
         const statusText = document.getElementById('statusText');
         const fpsVal = document.getElementById('fpsVal');
         const latencyVal = document.getElementById('latencyVal');
+        const toggleBgBtn = document.getElementById('toggleBgBtn');
+        const bgNameText = document.getElementById('bgNameText');
+
+        // Sistema dinámico de cambio de fondos
+        function applyBackground() {
+            if (state.bgType === 'hombres') {
+                document.body.style.backgroundImage = "url('abrazos.jpg')";
+                bgNameText.textContent = "Escenario: Hombres";
+            } else {
+                document.body.style.backgroundImage = "url('pelea.jpg')";
+                bgNameText.textContent = "Escenario: Mujeres";
+            }
+        }
+
+        toggleBgBtn.addEventListener('click', () => {
+            state.bgType = state.bgType === 'hombres' ? 'mujeres' : 'hombres';
+            localStorage.setItem('ko_bg_type', state.bgType);
+            applyBackground();
+        });
+
+        // Aplicar el fondo seleccionado al cargar la página
+        applyBackground();
 
         if (state.playerName) playerNameInput.value = state.playerName;
 
