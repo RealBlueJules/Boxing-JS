@@ -137,6 +137,46 @@
             80% { transform: translate(6px, 4px); }
         }
         .shake-heavy { animation: screenShake 0.35s ease-in-out; }
+
+        /* PARPADEO RGB PARA PUNTUACIÓN MÁXIMA 999 */
+        @keyframes rgbOverlayFlash {
+            0%   { background-color: rgba(255, 0, 85, 0.32); }
+            20%  { background-color: rgba(255, 170, 0, 0.32); }
+            40%  { background-color: rgba(0, 255, 136, 0.32); }
+            60%  { background-color: rgba(0, 212, 255, 0.32); }
+            80%  { background-color: rgba(180, 0, 255, 0.32); }
+            100% { background-color: rgba(255, 0, 85, 0.32); }
+        }
+
+        @keyframes rgbTextCycle {
+            0%   { color: #ff0055; text-shadow: 0 0 28px #ff0055; }
+            20%  { color: #ffdd00; text-shadow: 0 0 28px #ffdd00; }
+            40%  { color: #00ff88; text-shadow: 0 0 28px #00ff88; }
+            60%  { color: #00e5ff; text-shadow: 0 0 28px #00e5ff; }
+            80%  { color: #d500f9; text-shadow: 0 0 28px #d500f9; }
+            100% { color: #ff0055; text-shadow: 0 0 28px #ff0055; }
+        }
+
+        @keyframes rgbBorderCycle {
+            0%   { border-color: #ff0055; box-shadow: 0 0 35px rgba(255, 0, 85, 0.85); }
+            25%  { border-color: #00ff88; box-shadow: 0 0 35px rgba(0, 255, 136, 0.85); }
+            50%  { border-color: #00e5ff; box-shadow: 0 0 35px rgba(0, 229, 255, 0.85); }
+            75%  { border-color: #d500f9; box-shadow: 0 0 35px rgba(213, 0, 249, 0.85); }
+            100% { border-color: #ff0055; box-shadow: 0 0 35px rgba(255, 0, 85, 0.85); }
+        }
+
+        body.rgb-jackpot #rgbFlashLayer {
+            opacity: 1;
+            animation: rgbOverlayFlash 0.35s linear infinite;
+        }
+        body.rgb-jackpot .glass-panel,
+        body.rgb-jackpot #videoCard {
+            animation: rgbBorderCycle 0.35s linear infinite;
+        }
+        body.rgb-jackpot #currentScoreDisplay,
+        body.rgb-jackpot #punchBadge {
+            animation: rgbTextCycle 0.35s linear infinite;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between p-2 md:p-4">
@@ -144,8 +184,12 @@
     <!-- TINTE OSCURO SUAVE PARA EL BACKGROUND -->
     <div class="fixed inset-0 bg-overlay -z-10"></div>
 
-    <!-- SOUNDTRACK DE FONDO -->
+    <!-- CAPA DE PARPADEO RGB (999) -->
+    <div id="rgbFlashLayer" class="fixed inset-0 pointer-events-none opacity-0 z-40 transition-opacity duration-200"></div>
+
+    <!-- SOUNDTRACK DE FONDO Y EFECTO DE PREMIO 999 -->
     <audio id="bgMusic" src="tebastyson.mp3" loop preload="auto"></audio>
+    <audio id="winPrizeAudio" src="winprize.mp3" preload="auto"></audio>
 
     <!-- HEADER NAVBAR -->
     <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 relative z-10">
@@ -169,7 +213,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
-                <span id="bgNameText">Escenario: Hombres</span>
+                <span id="bgNameText">Escenario Azul</span>
             </button>
 
             <div id="playerChip" class="hidden sm:flex items-center bg-slate-900/70 border theme-border rounded-xl px-3 py-1.5 text-xs">
@@ -428,7 +472,9 @@
         }
 
         const bgMusic = document.getElementById('bgMusic');
+        const winPrizeAudio = document.getElementById('winPrizeAudio');
         bgMusic.volume = 0.35;
+        winPrizeAudio.volume = 0.85;
 
         function startSoundtrack() {
             if (!sound.muted && bgMusic.paused) {
@@ -443,6 +489,13 @@
                 if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 if (this.ctx.state === 'suspended') this.ctx.resume();
                 startSoundtrack();
+            }
+
+            playWinPrize() {
+                if (this.muted) return;
+                this.init();
+                winPrizeAudio.currentTime = 0;
+                winPrizeAudio.play().catch(() => {});
             }
 
             playBeep(isGo = false) {
@@ -566,6 +619,7 @@
 
         const sound = new SoundEngine();
         let poseLandmarker = null;
+        let rgbTimeout = null;
 
         const state = {
             playerName: localStorage.getItem('ko_last_player') || '',
@@ -585,7 +639,7 @@
             prevTimestamp: performance.now(),
             prevWrists: { left: null, right: null },
             trails: { left: [], right: [] },
-            bgType: localStorage.getItem('ko_bg_type') || 'hombres'
+            bgType: localStorage.getItem('ko_bg_type') === 'rosa' ? 'rosa' : 'azul'
         };
 
         const webcam = document.getElementById('webcam');
@@ -606,21 +660,30 @@
         const toggleBgBtn = document.getElementById('toggleBgBtn');
         const bgNameText = document.getElementById('bgNameText');
 
-        // Aplicar fondo y tema neón (Cian para hombres, Rosita neón para mujeres)
+        // Aplicar fondo y tema neón (Azul o Rosa)
         function applyBackgroundAndTheme() {
-            if (state.bgType === 'hombres') {
+            if (state.bgType === 'azul') {
                 document.body.style.backgroundImage = "url('abrazosbg.jpg')";
                 document.body.classList.remove('theme-pink');
-                bgNameText.textContent = "Escenario: Hombres";
+                bgNameText.textContent = "Escenario Azul";
             } else {
                 document.body.style.backgroundImage = "url('peleabg.jpg')";
                 document.body.classList.add('theme-pink');
-                bgNameText.textContent = "Escenario: Mujeres";
+                bgNameText.textContent = "Escenario Rosa";
             }
         }
 
+        function triggerRgbJackpot() {
+            document.body.classList.add('rgb-jackpot');
+            sound.playWinPrize();
+            clearTimeout(rgbTimeout);
+            rgbTimeout = setTimeout(() => {
+                document.body.classList.remove('rgb-jackpot');
+            }, 2600);
+        }
+
         toggleBgBtn.addEventListener('click', () => {
-            state.bgType = state.bgType === 'hombres' ? 'mujeres' : 'hombres';
+            state.bgType = state.bgType === 'azul' ? 'rosa' : 'azul';
             localStorage.setItem('ko_bg_type', state.bgType);
             applyBackgroundAndTheme();
         });
@@ -705,8 +768,8 @@
 
                     speedPercent = Math.max(leftSpeed, rightSpeed);
 
-                    const primaryNeon = state.bgType === 'mujeres' ? '#ec4899' : '#06b6d4';
-                    const secondaryNeon = state.bgType === 'mujeres' ? '#d946ef' : '#f59e0b';
+                    const primaryNeon = state.bgType === 'rosa' ? '#ec4899' : '#06b6d4';
+                    const secondaryNeon = state.bgType === 'rosa' ? '#d946ef' : '#f59e0b';
 
                     drawWristHUD(leftWrist, leftSpeed, primaryNeon, 'left');
                     drawWristHUD(rightWrist, rightSpeed, secondaryNeon, 'right');
@@ -786,7 +849,7 @@
             ctx.arc(x, y, radius, 0, Math.PI * 2);
             ctx.fillStyle = speed >= state.threshold
                 ? 'rgba(239, 68, 68, 0.45)'
-                : (state.bgType === 'mujeres' ? 'rgba(236, 72, 153, 0.3)' : 'rgba(6, 182, 212, 0.25)');
+                : (state.bgType === 'rosa' ? 'rgba(236, 72, 153, 0.3)' : 'rgba(6, 182, 212, 0.25)');
             ctx.fill();
             ctx.lineWidth = 3;
             ctx.strokeStyle = speed >= state.threshold ? '#ef4444' : color;
@@ -894,6 +957,10 @@
             } else if (score <= 700) {
                 rating = getRandomPhrase('medium');
                 colorClass = "text-amber-400";
+            } else if (score === 999) {
+                rating = "¡MÁXIMO PODER 999! ¡K.O. LEGENDARIO! 🌈👑";
+                colorClass = "text-amber-300";
+                triggerRgbJackpot();
             } else {
                 rating = getRandomPhrase('heavy');
                 colorClass = "text-red-500";
@@ -917,7 +984,7 @@
                 setTimeout(() => vc.classList.remove('hit-flash'), 600);
             }
 
-            setTimeout(() => { banner.style.opacity = '0'; }, 1500);
+            setTimeout(() => { banner.style.opacity = '0'; }, score === 999 ? 2400 : 1500);
         }
 
         function updateAttemptTrackerUI(attempt) {
@@ -947,8 +1014,12 @@
 
             const isNewRecord = bestScore > 0 && saveScoreToLeaderboard(state.playerName, bestScore);
             const recBadge = document.getElementById('summaryRecordBadge');
-            if (isNewRecord) { recBadge.classList.remove('hidden'); sound.playFanfare(); }
-            else { recBadge.classList.add('hidden'); }
+            if (isNewRecord) {
+                recBadge.classList.remove('hidden');
+                if (bestScore < 999) sound.playFanfare();
+            } else {
+                recBadge.classList.add('hidden');
+            }
 
             document.getElementById('summaryModal').classList.remove('hidden');
         }
@@ -1030,6 +1101,7 @@
         document.getElementById('audioToggleBtn').addEventListener('click', () => {
             sound.muted = !sound.muted;
             bgMusic.muted = sound.muted;
+            winPrizeAudio.muted = sound.muted;
             document.getElementById('audioIconOn').classList.toggle('hidden', sound.muted);
             document.getElementById('audioIconOff').classList.toggle('hidden', !sound.muted);
             if (!sound.muted) sound.init();
