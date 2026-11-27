@@ -11,10 +11,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --accent: #06b6d4;
+            --accent-light: #22d3ee;
+            --accent-secondary: #3b82f6;
+            --accent-rgb: 6, 182, 212;
+        }
+
+        body.theme-pink {
+            --accent: #ec4899;
+            --accent-light: #f472b6;
+            --accent-secondary: #d946ef;
+            --accent-rgb: 236, 72, 153;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: #050811;
-            /* El fondo se aplicará mediante JavaScript dinámicamente */
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -23,19 +36,77 @@
             user-select: none;
             transition: background-image 0.5s ease-in-out;
         }
+
         .bg-overlay {
-            background-color: rgba(5, 8, 17, 0.85); /* Tinte para oscurecer el fondo y destacar la interfaz */
+            background-color: rgba(5, 8, 17, 0.45);
         }
+
         .font-orbitron { font-family: 'Orbitron', sans-serif; }
-        .text-glow-cyan { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
+
+        .text-glow-theme {
+            text-shadow: 0 0 12px rgba(var(--accent-rgb), 0.85);
+        }
         .text-glow-amber { text-shadow: 0 0 12px rgba(245, 158, 11, 0.9); }
         .text-glow-red { text-shadow: 0 0 18px rgba(239, 68, 68, 0.9); }
+
         .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(51, 65, 85, 0.6);
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(var(--accent-rgb), 0.3);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+            transition: border-color 0.35s ease;
         }
-        input[type=range] { accent-color: #06b6d4; }
+
+        .theme-title {
+            background-image: linear-gradient(to right, var(--accent-light), var(--accent-secondary), #e2e8f0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .theme-btn-primary {
+            background-image: linear-gradient(to right, var(--accent), var(--accent-secondary));
+            box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.3);
+            color: #050811;
+            transition: all 0.3s ease;
+        }
+        .theme-btn-primary:hover {
+            filter: brightness(1.12);
+        }
+
+        .theme-chip {
+            background-color: rgba(var(--accent-rgb), 0.14);
+            border-color: rgba(var(--accent-rgb), 0.45);
+            color: var(--accent-light);
+            transition: all 0.3s ease;
+        }
+        .theme-chip:hover {
+            background-color: rgba(var(--accent-rgb), 0.25);
+        }
+
+        .theme-text {
+            color: var(--accent-light);
+            transition: color 0.3s ease;
+        }
+
+        .theme-bg-dot {
+            background-color: var(--accent-light);
+            box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.8);
+        }
+
+        .theme-border {
+            border-color: rgba(var(--accent-rgb), 0.45);
+            transition: border-color 0.3s ease;
+        }
+
+        .theme-input:focus {
+            border-color: var(--accent-light);
+        }
+
+        input[type=range] {
+            accent-color: var(--accent);
+        }
+
         #mainCanvas { transform: scaleX(-1); }
 
         @keyframes punchPop {
@@ -70,51 +141,51 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between p-2 md:p-4">
 
-    <!-- TINTE OSCURO PARA EL BACKGROUND -->
+    <!-- TINTE OSCURO SUAVE PARA EL BACKGROUND -->
     <div class="fixed inset-0 bg-overlay -z-10"></div>
 
     <!-- SOUNDTRACK DE FONDO -->
     <audio id="bgMusic" src="tebastyson.mp3" loop preload="auto"></audio>
 
     <!-- HEADER NAVBAR -->
-    <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 border border-slate-800 relative z-10">
+    <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 relative z-10">
         <div class="flex items-center space-x-3">
-            <div class="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+            <div class="p-2.5 theme-btn-primary rounded-xl">
                 <svg class="w-6 h-6 text-slate-950 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </div>
             <div>
-                <h1 class="font-orbitron font-extrabold text-lg md:text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300">
+                <h1 class="font-orbitron font-extrabold text-lg md:text-xl tracking-wider theme-title">
                     K.O. METRICS ARCADE
                 </h1>
-                <p class="text-xs text-slate-400 font-medium">Rastreo de Golpes con IA (MediaPipe Pose)</p>
+                <p class="text-xs text-slate-300 font-medium">Rastreo de Golpes con IA (MediaPipe Pose)</p>
             </div>
         </div>
 
         <div class="flex items-center gap-2 md:gap-3">
-            <!-- Botón para alternar fondo -->
-            <button id="toggleBgBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 rounded-xl text-cyan-400 font-orbitron text-xs font-bold transition-all" title="Cambiar escenario">
-                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Botón para alternar fondo y estilo neón -->
+            <button id="toggleBgBtn" class="flex items-center gap-1.5 px-3 py-1.5 theme-chip border rounded-xl font-orbitron text-xs font-bold transition-all" title="Cambiar escenario y tema">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
                 <span id="bgNameText">Escenario: Hombres</span>
             </button>
 
-            <div id="playerChip" class="hidden sm:flex items-center bg-slate-900 border border-cyan-500/40 rounded-xl px-3 py-1.5 text-xs">
-                <span class="text-slate-400 mr-1.5">Peleador:</span>
-                <span id="headerPlayerName" class="font-orbitron font-bold text-cyan-400">---</span>
+            <div id="playerChip" class="hidden sm:flex items-center bg-slate-900/70 border theme-border rounded-xl px-3 py-1.5 text-xs">
+                <span class="text-slate-300 mr-1.5">Peleador:</span>
+                <span id="headerPlayerName" class="font-orbitron font-bold theme-text">---</span>
             </div>
 
-            <button id="openLeaderboardBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-400 font-orbitron text-xs font-bold transition-all">
+            <button id="openLeaderboardBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 rounded-xl text-amber-400 font-orbitron text-xs font-bold transition-all">
                 <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                 </svg>
                 <span>Récords</span>
             </button>
 
-            <button id="audioToggleBtn" class="p-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 transition-all" title="Silenciar / Activar sonido">
-                <svg id="audioIconOn" class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button id="audioToggleBtn" class="p-2.5 bg-slate-800/70 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-slate-300 transition-all" title="Silenciar / Activar sonido">
+                <svg id="audioIconOn" class="w-5 h-5 theme-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
                 </svg>
                 <svg id="audioIconOff" class="w-5 h-5 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +200,7 @@
         
         <!-- CAMERA VIEWPORT & HUD OVERLAYS -->
         <div class="lg:col-span-8 flex flex-col items-center justify-center relative">
-            <div id="videoCard" class="relative w-full aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+            <div id="videoCard" class="relative w-full aspect-[4/3] bg-slate-900/75 rounded-2xl overflow-hidden border-2 theme-border shadow-2xl flex items-center justify-center">
                 
                 <video id="webcam" class="hidden" playsinline muted autoplay></video>
                 <canvas id="mainCanvas" class="w-full h-full object-cover block"></canvas>
@@ -140,26 +211,26 @@
                 </div>
 
                 <!-- Status Banner Overlay -->
-                <div id="statusBadge" class="absolute top-4 left-3 bg-slate-900/90 backdrop-blur-md border border-cyan-500/40 px-3 py-1.5 rounded-xl text-xs font-medium text-cyan-300 flex items-center gap-2 pointer-events-none z-10">
-                    <span id="statusPing" class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <div id="statusBadge" class="absolute top-4 left-3 bg-slate-900/75 backdrop-blur-md border theme-border px-3 py-1.5 rounded-xl text-xs font-medium theme-text flex items-center gap-2 pointer-events-none z-10">
+                    <span id="statusPing" class="w-2.5 h-2.5 rounded-full theme-bg-dot animate-ping"></span>
                     <span id="statusText" class="font-orbitron font-bold">Cargando Modelo IA...</span>
                 </div>
 
                 <!-- IA Mode Tag -->
-                <div class="absolute top-4 right-3 bg-slate-900/80 backdrop-blur-md border border-slate-700 px-2.5 py-1 rounded-lg text-[10px] font-mono text-slate-300 pointer-events-none z-10">
-                    <span>MODO: </span><span class="text-cyan-400 font-bold">MEDIAPIPE POSE IA</span>
+                <div class="absolute top-4 right-3 bg-slate-900/75 backdrop-blur-md border border-slate-700 px-2.5 py-1 rounded-lg text-[10px] font-mono text-slate-300 pointer-events-none z-10">
+                    <span>MODO: </span><span class="theme-text font-bold">MEDIAPIPE POSE IA</span>
                 </div>
 
                 <!-- Live Performance Stats -->
-                <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-mono text-slate-400 flex gap-3 border border-slate-800 pointer-events-none z-10">
-                    <div>FPS: <span id="fpsVal" class="text-cyan-400 font-bold">--</span></div>
+                <div class="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-mono text-slate-300 flex gap-3 border border-slate-800 pointer-events-none z-10">
+                    <div>FPS: <span id="fpsVal" class="theme-text font-bold">--</span></div>
                     <div>IA: <span id="latencyVal" class="text-emerald-400 font-bold">0 ms</span></div>
                 </div>
 
                 <!-- COUNTDOWN OVERLAY NUMBERS -->
-                <div id="countdownOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-xs pointer-events-none opacity-0 z-20">
+                <div id="countdownOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/35 backdrop-blur-xs pointer-events-none opacity-0 z-20">
                     <div id="countdownText" class="font-orbitron font-black text-8xl md:text-9xl text-amber-400 text-glow-amber">3</div>
-                    <div id="countdownSub" class="font-orbitron font-bold text-lg md:text-xl text-cyan-300 uppercase tracking-widest mt-2">¡PREPÁRATE!</div>
+                    <div id="countdownSub" class="font-orbitron font-bold text-lg md:text-xl theme-text uppercase tracking-widest mt-2">¡PREPÁRATE!</div>
                 </div>
 
                 <!-- PUNCH HIT SCORE BANNER OVERLAY -->
@@ -171,17 +242,17 @@
                 </div>
 
                 <!-- INITIAL CAMERA OVERLAY PROMPT -->
-                <div id="startOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30 transition-opacity">
-                    <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-center mb-4 text-cyan-400">
+                <div id="startOverlay" class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30 transition-opacity">
+                    <div class="w-16 h-16 theme-chip border rounded-2xl flex items-center justify-center mb-4">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                         </svg>
                     </div>
                     <h2 class="font-orbitron font-bold text-xl md:text-2xl text-slate-100 mb-2">Máquina de Boxeo con IA</h2>
-                    <p class="text-xs md:text-sm text-slate-400 max-w-md mb-6">
+                    <p class="text-xs md:text-sm text-slate-300 max-w-md mb-6">
                         Detecta tus muñecas en tiempo real e ignora el movimiento del fondo. Colócate de forma que se vean tus hombros y brazos.
                     </p>
-                    <button id="startCamBtn" disabled class="px-8 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-40 text-slate-950 font-orbitron font-extrabold text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition-all">
+                    <button id="startCamBtn" disabled class="px-8 py-3.5 theme-btn-primary disabled:opacity-40 font-orbitron font-extrabold text-sm rounded-xl transition-all">
                         CARGANDO IA...
                     </button>
                 </div>
@@ -192,79 +263,79 @@
         <!-- DASHBOARD & GAMEPLAY CONTROLS -->
         <div class="lg:col-span-4 flex flex-col gap-3">
             
-            <div class="glass-panel p-4 rounded-2xl flex flex-col border border-slate-800">
+            <div class="glass-panel p-4 rounded-2xl flex flex-col">
                 <div class="flex justify-between items-center mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Progreso del Turno</span>
+                    <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Progreso del Turno</span>
                     <span id="attemptCountBadge" class="font-orbitron font-bold text-xs text-amber-400">Intento 0 / 3</span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 mb-3">
-                    <div id="dot1" class="h-2 rounded-full bg-slate-800 transition-all"></div>
-                    <div id="dot2" class="h-2 rounded-full bg-slate-800 transition-all"></div>
-                    <div id="dot3" class="h-2 rounded-full bg-slate-800 transition-all"></div>
+                    <div id="dot1" class="h-2 rounded-full bg-slate-800/80 transition-all"></div>
+                    <div id="dot2" class="h-2 rounded-full bg-slate-800/80 transition-all"></div>
+                    <div id="dot3" class="h-2 rounded-full bg-slate-800/80 transition-all"></div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono mb-2">
-                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
-                        <div class="text-[10px] text-slate-500">INTENTO 1</div>
-                        <div id="scoreAtt1" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+                        <div class="text-[10px] text-slate-400">INTENTO 1</div>
+                        <div id="scoreAtt1" class="font-orbitron font-bold text-slate-200 mt-0.5">---</div>
                     </div>
-                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
-                        <div class="text-[10px] text-slate-500">INTENTO 2</div>
-                        <div id="scoreAtt2" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+                        <div class="text-[10px] text-slate-400">INTENTO 2</div>
+                        <div id="scoreAtt2" class="font-orbitron font-bold text-slate-200 mt-0.5">---</div>
                     </div>
-                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
-                        <div class="text-[10px] text-slate-500">INTENTO 3</div>
-                        <div id="scoreAtt3" class="font-orbitron font-bold text-slate-300 mt-0.5">---</div>
+                    <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+                        <div class="text-[10px] text-slate-400">INTENTO 3</div>
+                        <div id="scoreAtt3" class="font-orbitron font-bold text-slate-200 mt-0.5">---</div>
                     </div>
                 </div>
 
-                <button id="startTurnBtn" class="w-full py-3.5 mt-2 bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-orbitron font-extrabold text-xs md:text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                <button id="startTurnBtn" class="w-full py-3.5 mt-2 theme-btn-primary font-orbitron font-extrabold text-xs md:text-sm rounded-xl transform active:scale-95 flex items-center justify-center gap-2">
                     <span>INICIAR TURNO (ESPACIO)</span>
                 </button>
             </div>
 
-            <div class="glass-panel p-4 rounded-2xl flex flex-col items-center text-center relative border border-slate-800">
-                <div class="text-[11px] uppercase tracking-widest font-semibold text-slate-400 mb-1">Último Golpe</div>
-                <div id="currentScoreDisplay" class="font-orbitron text-5xl font-black text-cyan-400 text-glow-cyan my-0.5">000</div>
-                <div id="scoreRatingText" class="text-xs font-orbitron font-semibold text-slate-400 min-h-[2rem] flex items-center justify-center px-2 mb-2">
+            <div class="glass-panel p-4 rounded-2xl flex flex-col items-center text-center relative">
+                <div class="text-[11px] uppercase tracking-widest font-semibold text-slate-300 mb-1">Último Golpe</div>
+                <div id="currentScoreDisplay" class="font-orbitron text-5xl font-black theme-text text-glow-theme my-0.5">000</div>
+                <div id="scoreRatingText" class="text-xs font-orbitron font-semibold text-slate-300 min-h-[2rem] flex items-center justify-center px-2 mb-2">
                     ESPERANDO INICIO DE TURNO
                 </div>
 
-                <div class="w-full bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                    <div class="flex justify-between text-[10px] font-semibold text-slate-400 mb-1">
+                <div class="w-full bg-slate-950/60 p-2.5 rounded-xl border border-slate-700/60">
+                    <div class="flex justify-between text-[10px] font-semibold text-slate-300 mb-1">
                         <span>VELOCIDAD DE PUÑO</span>
-                        <span id="motionValText" class="text-cyan-400 font-bold">0%</span>
+                        <span id="motionValText" class="theme-text font-bold">0%</span>
                     </div>
-                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                        <div id="motionBar" class="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-red-500 rounded-full transition-all duration-75 w-0"></div>
+                    <div class="w-full h-2.5 bg-slate-900/80 rounded-full overflow-hidden p-0.5 border border-slate-700/60">
+                        <div id="motionBar" class="h-full bg-gradient-to-r from-cyan-400 via-pink-500 to-red-500 rounded-full transition-all duration-75 w-0"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3 border border-slate-800">
-                <h3 class="font-orbitron text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-1.5 flex justify-between items-center">
+            <div class="glass-panel p-4 rounded-2xl flex flex-col gap-3">
+                <h3 class="font-orbitron text-xs font-bold text-slate-200 uppercase tracking-wider border-b border-slate-700/60 pb-1.5 flex justify-between items-center">
                     <span>Ajustes de Detección</span>
                     <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                 </h3>
 
                 <div class="flex flex-col gap-1">
                     <div class="flex justify-between text-xs font-medium">
-                        <span class="text-slate-300">Multiplicador de Velocidad</span>
-                        <span id="sensitivityVal" class="text-cyan-400 font-bold">1.0x</span>
+                        <span class="text-slate-200">Multiplicador de Velocidad</span>
+                        <span id="sensitivityVal" class="theme-text font-bold">1.0x</span>
                     </div>
-                    <input type="range" id="sensitivitySlider" min="0.4" max="2.5" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="sensitivitySlider" min="0.4" max="2.5" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-800/80 rounded-lg appearance-none cursor-pointer">
                 </div>
 
                 <div class="flex flex-col gap-1">
                     <div class="flex justify-between text-xs font-medium">
-                        <span class="text-slate-300">Umbral Mínimo de Golpe</span>
+                        <span class="text-slate-200">Umbral Mínimo de Golpe</span>
                         <span id="thresholdVal" class="text-amber-400 font-bold">18%</span>
                     </div>
-                    <input type="range" id="thresholdSlider" min="5" max="45" step="1" value="18" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="thresholdSlider" min="5" max="45" step="1" value="18" class="w-full h-1.5 bg-slate-800/80 rounded-lg appearance-none cursor-pointer">
                 </div>
 
-                <button id="changePlayerBtn" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-orbitron text-xs font-bold rounded-xl transition-all border border-slate-700 mt-1">
+                <button id="changePlayerBtn" class="w-full py-2 bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 font-orbitron text-xs font-bold rounded-xl transition-all border border-slate-700/70 mt-1">
                     Cambiar Nombre de Jugador
                 </button>
             </div>
@@ -272,49 +343,49 @@
     </main>
 
     <!-- MODALES -->
-    <div id="nameModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-cyan-500/40 shadow-2xl text-center flex flex-col items-center relative z-20">
+    <div id="nameModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border theme-border shadow-2xl text-center flex flex-col items-center relative z-20">
             <h2 class="font-orbitron font-extrabold text-xl md:text-2xl text-slate-100 mb-1">REGISTRO DE PELEADOR</h2>
-            <p class="text-xs text-slate-400 mb-5">Ingresa tu nombre para guardar tu récord en el tablero local.</p>
+            <p class="text-xs text-slate-300 mb-5">Ingresa tu nombre para guardar tu récord en el tablero local.</p>
             <form id="nameForm" class="w-full flex flex-col gap-4">
                 <input type="text" id="playerNameInput" maxlength="15" required placeholder="Ej: Tyson, Rocky, Canelo" 
-                    class="w-full bg-slate-900 border-2 border-slate-700 focus:border-cyan-400 text-slate-100 font-orbitron font-bold text-center text-lg p-3 rounded-xl outline-none">
-                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-orbitron font-extrabold text-sm rounded-xl">
+                    class="w-full bg-slate-900/80 border-2 border-slate-700 theme-input text-slate-100 font-orbitron font-bold text-center text-lg p-3 rounded-xl outline-none">
+                <button type="submit" class="w-full py-3.5 theme-btn-primary font-orbitron font-extrabold text-sm rounded-xl">
                     ENTRAR AL RING
                 </button>
             </form>
         </div>
     </div>
 
-    <div id="summaryModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div id="summaryModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
         <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-amber-500/40 shadow-2xl text-center flex flex-col items-center relative z-20">
             <h2 class="font-orbitron font-extrabold text-xl text-slate-100 mb-1">FIN DEL TURNO</h2>
-            <p id="summaryPlayerName" class="text-sm font-orbitron text-cyan-400 font-bold mb-4">Peleador</p>
-            <div class="w-full bg-slate-900/90 border border-amber-500/50 rounded-2xl p-4 mb-4">
+            <p id="summaryPlayerName" class="text-sm font-orbitron theme-text font-bold mb-4">Peleador</p>
+            <div class="w-full bg-slate-900/70 border border-amber-500/50 rounded-2xl p-4 mb-4">
                 <div class="text-xs uppercase text-amber-400 font-semibold tracking-widest">Mejor Golpe del Turno</div>
                 <div id="summaryBestScore" class="font-orbitron text-6xl font-black text-amber-400 text-glow-amber my-1">000</div>
                 <div id="summaryRecordBadge" class="text-xs font-orbitron text-emerald-400 font-bold hidden">¡NUEVO RÉCORD GUARDADO!</div>
             </div>
             <div class="w-full grid grid-cols-3 gap-2 text-center text-xs font-mono mb-6">
-                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 1</span><span id="sumScore1" class="font-orbitron font-bold text-sm">---</span></div>
-                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 2</span><span id="sumScore2" class="font-orbitron font-bold text-sm">---</span></div>
-                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800"><span class="text-[10px] text-slate-500 block">GOLPE 3</span><span id="sumScore3" class="font-orbitron font-bold text-sm">---</span></div>
+                <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-700/60"><span class="text-[10px] text-slate-400 block">GOLPE 1</span><span id="sumScore1" class="font-orbitron font-bold text-sm">---</span></div>
+                <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-700/60"><span class="text-[10px] text-slate-400 block">GOLPE 2</span><span id="sumScore2" class="font-orbitron font-bold text-sm">---</span></div>
+                <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-700/60"><span class="text-[10px] text-slate-400 block">GOLPE 3</span><span id="sumScore3" class="font-orbitron font-bold text-sm">---</span></div>
             </div>
             <div class="w-full flex gap-2">
-                <button id="playAgainBtn" class="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-orbitron font-extrabold text-xs rounded-xl">OTRO TURNO</button>
-                <button id="closeSummaryBtn" class="py-3 px-4 bg-slate-800 text-slate-300 font-orbitron font-bold text-xs rounded-xl border border-slate-700">CERRAR</button>
+                <button id="playAgainBtn" class="flex-1 py-3 theme-btn-primary font-orbitron font-extrabold text-xs rounded-xl">OTRO TURNO</button>
+                <button id="closeSummaryBtn" class="py-3 px-4 bg-slate-800/80 text-slate-200 font-orbitron font-bold text-xs rounded-xl border border-slate-700">CERRAR</button>
             </div>
         </div>
     </div>
 
-    <div id="leaderboardModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl flex flex-col relative z-20">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+    <div id="leaderboardModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border theme-border shadow-2xl flex flex-col relative z-20">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700/60 pb-3">
                 <h2 class="font-orbitron font-extrabold text-lg text-slate-100">TABLA DE RÉCORDS</h2>
-                <button id="closeLeaderboardBtn" class="text-slate-400 hover:text-slate-100 p-1">✕</button>
+                <button id="closeLeaderboardBtn" class="text-slate-300 hover:text-slate-100 p-1">✕</button>
             </div>
             <div id="leaderboardList" class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1 mb-4"></div>
-            <button id="clearLeaderboardBtn" class="w-full py-2 bg-red-950/40 text-red-400 font-orbitron text-xs font-bold rounded-xl border border-red-800/40">Borrar Historial</button>
+            <button id="clearLeaderboardBtn" class="w-full py-2 bg-red-950/50 text-red-400 font-orbitron text-xs font-bold rounded-xl border border-red-800/40">Borrar Historial</button>
         </div>
     </div>
 
@@ -514,7 +585,7 @@
             prevTimestamp: performance.now(),
             prevWrists: { left: null, right: null },
             trails: { left: [], right: [] },
-            bgType: localStorage.getItem('ko_bg_type') || 'hombres' // 'hombres' o 'mujeres'
+            bgType: localStorage.getItem('ko_bg_type') || 'hombres'
         };
 
         const webcam = document.getElementById('webcam');
@@ -535,13 +606,15 @@
         const toggleBgBtn = document.getElementById('toggleBgBtn');
         const bgNameText = document.getElementById('bgNameText');
 
-        // Sistema dinámico de cambio de fondos
-        function applyBackground() {
+        // Aplicar fondo y tema neón (Cian para hombres, Rosita neón para mujeres)
+        function applyBackgroundAndTheme() {
             if (state.bgType === 'hombres') {
                 document.body.style.backgroundImage = "url('abrazosbg.jpg')";
+                document.body.classList.remove('theme-pink');
                 bgNameText.textContent = "Escenario: Hombres";
             } else {
                 document.body.style.backgroundImage = "url('peleabg.jpg')";
+                document.body.classList.add('theme-pink');
                 bgNameText.textContent = "Escenario: Mujeres";
             }
         }
@@ -549,11 +622,10 @@
         toggleBgBtn.addEventListener('click', () => {
             state.bgType = state.bgType === 'hombres' ? 'mujeres' : 'hombres';
             localStorage.setItem('ko_bg_type', state.bgType);
-            applyBackground();
+            applyBackgroundAndTheme();
         });
 
-        // Aplicar el fondo seleccionado al cargar la página
-        applyBackground();
+        applyBackgroundAndTheme();
 
         if (state.playerName) playerNameInput.value = state.playerName;
 
@@ -633,8 +705,11 @@
 
                     speedPercent = Math.max(leftSpeed, rightSpeed);
 
-                    drawWristHUD(leftWrist, leftSpeed, '#06b6d4', 'left');
-                    drawWristHUD(rightWrist, rightSpeed, '#f59e0b', 'right');
+                    const primaryNeon = state.bgType === 'mujeres' ? '#ec4899' : '#06b6d4';
+                    const secondaryNeon = state.bgType === 'mujeres' ? '#d946ef' : '#f59e0b';
+
+                    drawWristHUD(leftWrist, leftSpeed, primaryNeon, 'left');
+                    drawWristHUD(rightWrist, rightSpeed, secondaryNeon, 'right');
                 } else {
                     state.prevWrists.left = null;
                     state.prevWrists.right = null;
@@ -709,7 +784,9 @@
             const radius = speed >= state.threshold ? 24 : 14;
             ctx.beginPath();
             ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = speed >= state.threshold ? 'rgba(239, 68, 68, 0.45)' : 'rgba(6, 182, 212, 0.25)';
+            ctx.fillStyle = speed >= state.threshold
+                ? 'rgba(239, 68, 68, 0.45)'
+                : (state.bgType === 'mujeres' ? 'rgba(236, 72, 153, 0.3)' : 'rgba(6, 182, 212, 0.25)');
             ctx.fill();
             ctx.lineWidth = 3;
             ctx.strokeStyle = speed >= state.threshold ? '#ef4444' : color;
@@ -806,14 +883,14 @@
             document.getElementById('currentScoreDisplay').textContent = score.toString().padStart(3, '0');
 
             let rating = "";
-            let colorClass = "text-slate-400";
+            let colorClass = "text-slate-300";
 
             if (score === 0) {
                 rating = getRandomPhrase('miss');
-                colorClass = "text-slate-400";
+                colorClass = "text-slate-300";
             } else if (score <= 350) {
                 rating = getRandomPhrase('light');
-                colorClass = "text-cyan-400";
+                colorClass = "theme-text";
             } else if (score <= 700) {
                 rating = getRandomPhrase('medium');
                 colorClass = "text-amber-400";
@@ -845,14 +922,14 @@
 
         function updateAttemptTrackerUI(attempt) {
             document.getElementById('attemptCountBadge').textContent = `Intento ${attempt} / 3`;
-            document.getElementById(`dot${attempt}`).className = "h-2 rounded-full bg-cyan-400 shadow-md shadow-cyan-400/50";
+            document.getElementById(`dot${attempt}`).className = "h-2 rounded-full theme-bg-dot transition-all";
         }
 
         function resetAttemptUI() {
             document.getElementById('attemptCountBadge').textContent = "Intento 0 / 3";
             [1, 2, 3].forEach(n => {
                 document.getElementById(`scoreAtt${n}`).textContent = "---";
-                document.getElementById(`dot${n}`).className = "h-2 rounded-full bg-slate-800";
+                document.getElementById(`dot${n}`).className = "h-2 rounded-full bg-slate-800/80";
             });
             document.getElementById('currentScoreDisplay').textContent = "000";
             document.getElementById('scoreRatingText').textContent = "PREPARADO";
@@ -890,14 +967,14 @@
             const board = getLeaderboard();
             const list = document.getElementById('leaderboardList');
             list.innerHTML = board.length === 0
-                ? `<div class="text-center text-xs text-slate-500 py-6">Sin récords guardados aún.</div>`
+                ? `<div class="text-center text-xs text-slate-400 py-6">Sin récords guardados aún.</div>`
                 : board.map((e, i) => `
-                    <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
+                    <div class="flex justify-between items-center bg-slate-900/70 border border-slate-700/60 p-2.5 rounded-xl text-xs font-mono">
                         <div class="flex items-center gap-2">
                             <span class="${i === 0 ? 'text-amber-400' : 'text-slate-300'} font-bold w-5 text-center font-orbitron">#${i + 1}</span>
                             <span class="font-orbitron font-bold text-slate-100">${e.name.replace(/[<>&"']/g, '')}</span>
                         </div>
-                        <span class="font-orbitron font-extrabold text-cyan-400">${e.score} pts</span>
+                        <span class="font-orbitron font-extrabold theme-text">${e.score} pts</span>
                     </div>`).join('');
         }
 
