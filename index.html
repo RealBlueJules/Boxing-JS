@@ -62,6 +62,9 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between p-2 md:p-4 bg-slate-950 text-slate-100">
 
+    <!-- SOUNDTRACK DE FONDO -->
+    <audio id="bgMusic" src="tebastyson.mp3" loop preload="auto"></audio>
+
     <!-- HEADER NAVBAR -->
     <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl glass-panel mb-3 border border-slate-800">
         <div class="flex items-center space-x-3">
@@ -229,17 +232,17 @@
                 <div class="flex flex-col gap-1">
                     <div class="flex justify-between text-xs font-medium">
                         <span class="text-slate-300">Multiplicador de Velocidad</span>
-                        <span id="sensitivityVal" class="text-cyan-400 font-bold">1.5x</span>
+                        <span id="sensitivityVal" class="text-cyan-400 font-bold">1.0x</span>
                     </div>
-                    <input type="range" id="sensitivitySlider" min="0.5" max="3.5" step="0.1" value="1.5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="sensitivitySlider" min="0.4" max="2.5" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
                 </div>
 
                 <div class="flex flex-col gap-1">
                     <div class="flex justify-between text-xs font-medium">
                         <span class="text-slate-300">Umbral Mínimo de Golpe</span>
-                        <span id="thresholdVal" class="text-amber-400 font-bold">15%</span>
+                        <span id="thresholdVal" class="text-amber-400 font-bold">18%</span>
                     </div>
-                    <input type="range" id="thresholdSlider" min="5" max="40" step="1" value="15" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="thresholdSlider" min="5" max="45" step="1" value="18" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
                 </div>
 
                 <button id="changePlayerBtn" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-orbitron text-xs font-bold rounded-xl transition-all border border-slate-700 mt-1">
@@ -334,12 +337,22 @@
             return list[Math.floor(Math.random() * list.length)];
         }
 
+        const bgMusic = document.getElementById('bgMusic');
+        bgMusic.volume = 0.35;
+
+        function startSoundtrack() {
+            if (!sound.muted && bgMusic.paused) {
+                bgMusic.play().catch(() => {});
+            }
+        }
+
         class SoundEngine {
             constructor() { this.ctx = null; this.muted = false; }
 
             init() {
                 if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 if (this.ctx.state === 'suspended') this.ctx.resume();
+                startSoundtrack();
             }
 
             playBeep(isGo = false) {
@@ -387,7 +400,6 @@
                 const now = this.ctx.currentTime;
 
                 if (score === 0) {
-                    // Sonido cómico descendente (fallo)
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = 'sawtooth';
@@ -403,7 +415,6 @@
                 }
 
                 if (score <= 350) {
-                    // Golpe leve: sonido agudo/suave tipo tap
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = 'sine';
@@ -416,7 +427,6 @@
                     osc.start(now);
                     osc.stop(now + 0.15);
                 } else if (score <= 700) {
-                    // Golpe medio: impacto + silbido de aire
                     this.playNoiseBurst(0.14, 900, 0.45);
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -430,7 +440,6 @@
                     osc.start(now);
                     osc.stop(now + 0.25);
                 } else {
-                    // Golpe alto / K.O.: explosión grave + golpe seco fuerte
                     this.playNoiseBurst(0.25, 1400, 0.85);
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -478,11 +487,12 @@
             measureStartTime: 0,
             measureDuration: 2500,
             peakScoreInMeasurement: 0,
-            sensitivity: 1.5,
-            threshold: 15,
+            sensitivity: 1.0,
+            threshold: 18,
             frameCount: 0,
             lastFpsUpdate: performance.now(),
             lastVideoTime: -1,
+            prevTimestamp: performance.now(),
             prevWrists: { left: null, right: null },
             trails: { left: [], right: [] }
         };
@@ -544,6 +554,7 @@
                 canvas.width = webcam.videoWidth || 640;
                 canvas.height = webcam.videoHeight || 480;
                 state.isStreaming = true;
+                state.prevTimestamp = performance.now();
                 startOverlay.classList.add('opacity-0', 'pointer-events-none');
                 statusText.textContent = "SISTEMA LISTO";
                 statusPing.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
@@ -563,7 +574,10 @@
 
             if (poseLandmarker && webcam.currentTime !== state.lastVideoTime) {
                 const t0 = performance.now();
+                const dt = (t0 - state.prevTimestamp) / 1000;
+                state.prevTimestamp = t0;
                 state.lastVideoTime = webcam.currentTime;
+
                 const results = poseLandmarker.detectForVideo(webcam, t0);
                 latencyVal.textContent = `${(performance.now() - t0).toFixed(1)} ms`;
 
@@ -572,8 +586,8 @@
                     const leftWrist = landmarks[15];
                     const rightWrist = landmarks[16];
 
-                    const leftSpeed = computeWristSpeed('left', leftWrist);
-                    const rightSpeed = computeWristSpeed('right', rightWrist);
+                    const leftSpeed = computeWristSpeed('left', leftWrist, dt);
+                    const rightSpeed = computeWristSpeed('right', rightWrist, dt);
 
                     speedPercent = Math.max(leftSpeed, rightSpeed);
 
@@ -606,28 +620,30 @@
             requestAnimationFrame(processFrameLoop);
         }
 
-        function computeWristSpeed(side, current) {
-            if (!current || current.visibility < 0.5) {
+        function computeWristSpeed(side, current, dt) {
+            if (!current || current.visibility < 0.75 || dt <= 0) {
                 state.prevWrists[side] = null;
                 state.trails[side] = [];
                 return 0;
             }
 
             const prev = state.prevWrists[side];
-            state.prevWrists[side] = { x: current.x, y: current.y, z: current.z };
+            state.prevWrists[side] = { x: current.x, y: current.y };
 
             if (!prev) return 0;
 
             const dx = current.x - prev.x;
             const dy = current.y - prev.y;
-            const dz = (current.z - prev.z) * 0.6;
-            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
-            return dist * 450 * state.sensitivity;
+            if (dist < 0.015) return 0;
+
+            const velocityPerSec = (dist - 0.015) / dt;
+            return velocityPerSec * 28 * state.sensitivity;
         }
 
         function drawWristHUD(wrist, speed, color, side) {
-            if (!wrist || wrist.visibility < 0.5) return;
+            if (!wrist || wrist.visibility < 0.75) return;
 
             const x = wrist.x * canvas.width;
             const y = wrist.y * canvas.height;
@@ -733,7 +749,7 @@
                 const peak = state.peakScoreInMeasurement;
                 let score = 0;
                 if (peak >= state.threshold) {
-                    const ratio = Math.min((peak - state.threshold) / (85 - state.threshold), 1.0);
+                    const ratio = Math.min((peak - state.threshold) / (110 - state.threshold), 1.0);
                     score = Math.floor(180 + (ratio * 819));
                 } else if (peak > 2) {
                     score = Math.floor((peak / state.threshold) * 150);
@@ -854,6 +870,7 @@
                 headerPlayerName.textContent = val;
                 playerChip.classList.remove('hidden');
                 nameModal.classList.add('hidden');
+                sound.init();
                 if (!state.isStreaming && poseLandmarker) startCamera();
             }
         });
@@ -893,6 +910,7 @@
         });
         document.getElementById('audioToggleBtn').addEventListener('click', () => {
             sound.muted = !sound.muted;
+            bgMusic.muted = sound.muted;
             document.getElementById('audioIconOn').classList.toggle('hidden', sound.muted);
             document.getElementById('audioIconOff').classList.toggle('hidden', !sound.muted);
             if (!sound.muted) sound.init();
