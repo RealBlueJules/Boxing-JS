@@ -278,9 +278,9 @@
                 </div>
 
                 <!-- PUNCH HIT SCORE BANNER OVERLAY -->
-                <div id="punchBanner" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 pointer-events-none opacity-0 z-20 text-center">
+                <div id="punchBanner" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 pointer-events-none opacity-0 z-20 text-center transition-opacity duration-300">
                     <div id="punchBadge" class="font-orbitron font-black text-7xl md:text-9xl tracking-tight text-red-500 text-glow-red animate-pop">000</div>
-                    <div id="punchSubtitle" class="font-orbitron text-sm md:text-xl font-bold text-amber-400 text-glow-amber uppercase tracking-wider mt-1 px-3 py-1 rounded-xl bg-slate-950/75 inline-block">
+                    <div id="punchSubtitle" class="font-orbitron text-sm md:text-xl font-bold text-amber-400 text-glow-amber uppercase tracking-wider mt-1 px-4 py-1.5 rounded-xl bg-slate-950/85 border border-slate-700/70 inline-block">
                         ¡GOLPE REGISTRADO!
                     </div>
                 </div>
@@ -473,8 +473,14 @@
 
         const bgMusic = document.getElementById('bgMusic');
         const winPrizeAudio = document.getElementById('winPrizeAudio');
-        bgMusic.volume = 0.35;
-        winPrizeAudio.volume = 0.85;
+        const BG_BASE_VOLUME = 0.22;
+        bgMusic.volume = BG_BASE_VOLUME;
+        winPrizeAudio.volume = 1.0;
+
+        // Restaurar volumen normal de la música al terminar el sonido del premio
+        winPrizeAudio.addEventListener('ended', () => {
+            bgMusic.volume = BG_BASE_VOLUME;
+        });
 
         function startSoundtrack() {
             if (!sound.muted && bgMusic.paused) {
@@ -494,8 +500,12 @@
             playWinPrize() {
                 if (this.muted) return;
                 this.init();
+                // Bajar la música de fondo (ducking) para que el premio resalte fuerte
+                bgMusic.volume = 0.05;
                 winPrizeAudio.currentTime = 0;
-                winPrizeAudio.play().catch(() => {});
+                winPrizeAudio.play().catch(() => {
+                    bgMusic.volume = BG_BASE_VOLUME;
+                });
             }
 
             playBeep(isGo = false) {
@@ -620,6 +630,7 @@
         const sound = new SoundEngine();
         let poseLandmarker = null;
         let rgbTimeout = null;
+        let bannerTimeout = null;
 
         const state = {
             playerName: localStorage.getItem('ko_last_player') || '',
@@ -679,7 +690,7 @@
             clearTimeout(rgbTimeout);
             rgbTimeout = setTimeout(() => {
                 document.body.classList.remove('rgb-jackpot');
-            }, 2600);
+            }, 4200);
         }
 
         toggleBgBtn.addEventListener('click', () => {
@@ -880,10 +891,10 @@
                 const attemptScore = await runMeasurementWindow();
                 state.attemptScores[i - 1] = attemptScore;
                 showAttemptResult(i, attemptScore);
-                if (i < 3) await sleep(2000);
+                if (i < 3) await sleep(attemptScore === 999 ? 4300 : 3200);
             }
 
-            await sleep(1000);
+            await sleep(2200);
             finishRoundSummary();
         }
 
@@ -984,7 +995,8 @@
                 setTimeout(() => vc.classList.remove('hit-flash'), 600);
             }
 
-            setTimeout(() => { banner.style.opacity = '0'; }, score === 999 ? 2400 : 1500);
+            clearTimeout(bannerTimeout);
+            bannerTimeout = setTimeout(() => { banner.style.opacity = '0'; }, score === 999 ? 4200 : 3000);
         }
 
         function updateAttemptTrackerUI(attempt) {
